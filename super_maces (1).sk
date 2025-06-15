@@ -1,0 +1,155 @@
+# Made By BountyBear
+# -------------------
+# 1.21+
+
+
+
+# ITEMS And Commands
+
+
+on load:
+	set {-weaving.mace} to mace named "&fWeaving Mace" with lore "&4Passive" and "&7- &c No Passive " and " " and "&f&lPowers:" and "&7- &f&lRemoves All Webs In Radius(4)" with custom model data 1
+	set {-melee.mace} to mace named "&4&lMelee Mace" with lore "&4Passive" and "&7-&c Strength 1" and "&7-&c 1.5X Damage" and " " and "&f&lPowers:" and "&4No Powers" with custom model data 2
+	set {-wings-mace} to mace named "&f&lWingsMace" with lore "&4Passive" and "&c No Passive" and " "  and "&f&lPowers:" and "&7-&f Flight" with custom model data 3
+	broadcast "&a Loaded Sucessfully!"
+
+command /mace <text>:
+	permission: op
+	trigger:
+		if arg-1 is set:
+			if arg-1 is "Weaving":
+				give 1 of {-weaving.mace} to player
+			if arg-1 is "Melee":
+				give 1 of {-melee.mace} to player
+			if arg-1 is "Wings":
+				give 1 of  {-wings-mace} to player
+
+
+
+command /cooldown [<player>]:
+	permission: op
+	trigger:
+		if arg-1 is set:
+			set {_1} to arg-1
+			cooldown({_1})
+		else:
+			set {_1} to player
+			cooldown({_1})
+
+
+on tab complete for "/cooldown":
+	set tab completions for position 1 to all players
+
+on tab complete for "/mace":
+	set tab completions for position 1 to "Weaving" and "Melee" and "Wings"
+
+
+
+every 1 second:
+	loop all players:
+		cooldownsystem(loop-player)
+		actionbar(loop-player)
+
+
+# Item's Use
+
+on damage:
+	loop all items in attacker's inventory:
+		if IsMace(loop-item) is true:
+			if WhatMace(loop-item) is "melee":
+				add damage / 2 to damage
+
+
+on right click:
+	if IsMace(player's held item) is true:
+		if WhatMace(player's held item) is "weaving":
+			if {-weaving::%player's uuid%} is not "&aReady!":
+				send "&cYour mace is on cooldown for %{-weaving::%player's uuid%}% Seconds" to player
+			else:
+				set {-weaving::%player's uuid%} to 45
+				loop all blocks in radius 5 around player:
+					if loop-block is cobweb:
+						set {_loc} to loop-block's location
+						set block at location at {_loc} to air
+						Weaving(0.5, {_loc})
+		else if WhatMace(player's held item) is "wings":
+			if {-wings::%player's uuid%} is not "&aReady!":
+				send "&cYour mace is in cooldown for %{-wings::%player's uuid%}% Seconds" to player
+			else:
+				set {flying::%player's uuid%} to true
+				set {-wings::%player's uuid%} to "&cActive.."
+				push player up at speed 2.5
+				push player forward at speed 1
+				wait 1 second
+				while {flying::%player's uuid%} is set:
+					if block below player is air:
+						set {-wings::%player's uuid%} to "&cActive..."
+						set gliding of player to true
+						draw 2 of cloud at player with extra 0
+						wait 1 tick
+					else:
+						set {-wings::%player's uuid%} to 45
+						delete {flying::%player's uuid%}
+
+on join:
+	cooldown(player)
+
+# Functions [Only For Devs]
+
+function IsMace(i: item) :: boolean:
+	if lore of {_i} contains "&7- &f&lRemoves All Webs In Radius(4)" or "&7-&c Strength 1" or "&7-&f Flight":
+		return true
+
+function WhatMace(i: item) :: string:
+	if name of {_i} contains "&fWeaving Mace":
+		return "weaving"
+	if name of {_i} contains "&4&lMelee Mace":
+		return "melee"
+	if name of {_i} contains "&f&lWingsMace":
+		return "wings"
+
+
+
+function actionbar(p: player):
+	set {_uuid} to {_p}'s uuid
+	if IsMace({_p}'s held item) is true:
+		if WhatMace({_p}'s held item) is "weaving":
+			send action bar "&7---&bᴡᴇᴀᴠɪɴɢ &f| %{-weaving::%{_uuid}%}%&7---" to {_p}
+		if WhatMace({_p}'s held item) is "wings":
+			send action bar "&7---&bᴡɪɴɢꜱ &f| %{-wings::%{_uuid}%}%&7---" to {_p}
+
+
+
+
+function cooldownsystem(p: player):
+	set {_uuid} to {_p}'s uuid
+	if {-weaving::%{_uuid}%} is not set:
+		set {-weaving::%{_uuid}%} to "&aReady!"
+	if {-wings::%{_uuid}%} is not set:
+		set {-wings::%{_uuid}%} to "&aReady!"
+	if {-weaving::%{_uuid}%} is 0:
+		set {-weaving::%{_uuid}%} to "&aReady!"
+	if {-weaving::%{_uuid}%} > 0:
+		remove 1 from {-weaving::%{_uuid}%}
+	if {-wings::%{_uuid}%} is 0:
+		set {-wings::%{_uuid}%} to "&aReady!"
+	if {-wings::%{_uuid}%} > 0:
+		remove 1 from {-wings::%{_uuid}%}
+
+function cooldown(p: player):
+	set {_uuid} to {_p}'s uuid
+	set {-weaving::%{_uuid}%} to "&aReady!"
+	set {-wings::%{_uuid}%} to "&aReady!"
+
+function Weaving(s: number, p: location):
+	set {_spacing} to 0.1
+	set {_pl} to location of {_p}
+	set {_circumference} to 2 * pi * {_s}
+	
+	set {_numParticles} to floor({_circumference} / {_spacing})
+
+	loop {_numParticles} times:
+		set {_angle} to loop-value * 360 / {_numParticles}
+		set {_v} to spherical vector with radius {_s}, yaw {_angle} and pitch 0
+		
+		make 1 of dust using dustOption(rgb(241, 210, 227), 2) at {_pl} ~ {_v}
